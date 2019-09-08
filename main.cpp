@@ -75,6 +75,7 @@ void cerrar_sesion();
 
 void menu_admin();
 void menu_cajero();
+void menu_cuenta();
 
 
 //FUNCIONES DEL ADMINISTRADOR
@@ -84,6 +85,14 @@ void modificar_usuario();
 void eliminar_usuario();
 void edit_user(char *nick, Usuario *editedUser, bool del);
 void lista_usuarios();
+
+//FUNCIONES PANEL DE CUENTAS
+void agregar_cuentas();
+void guardar_cuenta(const char *file, Cuenta *cuenta);
+Cuenta *buscar_cuenta(const char* n_cuenta);
+void modificar_cuenta();
+void edit_account(Cuenta* editedAccount);
+void bloquear_cuenta();
 
 vector<Usuario *> usuarios;
 vector<Cuenta*> cuentas;
@@ -106,9 +115,7 @@ int main()
 
 	system("color F0");
 
-	logged_user = new Usuario();
-	logged_user->tipo = '1';
-	strcpy_s(logged_user->nombre, "Administrador");
+	logged_user = buscar_usuario("suaj");
 
 
 	do {
@@ -126,6 +133,7 @@ int main()
 				case '2':
 					break;
 				case '3':
+					menu_cuenta();
 					break;
 				case '4':
 					break;
@@ -141,6 +149,309 @@ int main()
 
 }
 
+void menu_cuenta()
+{
+	system("CLS");
+	switch (menus(1, 4, 3))
+	{
+		case 1:
+			agregar_cuentas();
+			break;
+
+		case 2:
+			modificar_cuenta();
+			break;
+
+		case 3:
+			bloquear_cuenta();
+			break;
+
+		case 4:
+
+			break;
+
+		case 27 - 48:
+			cerrar_sesion();
+			break;
+	}
+}
+
+void agregar_cuentas()
+{
+	system("CLS");
+	formulario(3);
+
+	string in;
+	Cuenta* cuenta = new Cuenta();
+
+	gotoxy(41, 7); getline(cin, in);
+
+	if (in.size() > 5)
+	{
+		gotoxy(30, 20); cout << "El numero excede los 5 caracteres";
+		_getch();
+		return;
+	}
+	else if (buscar_cuenta(in.c_str()))
+	{
+		gotoxy(30, 20); cout << "El numero de cuenta ya existe";
+		_getch();
+		return;
+	}
+
+	strcpy_s(cuenta->numero, in.c_str());
+
+	gotoxy(49, 8); getline(cin, in);
+
+	if (in.size() > 40)
+	{
+		gotoxy(30, 20); cout << "El nombre excede los 40 caracteres";
+		_getch();
+		return;
+	}
+
+	strcpy_s(cuenta->nombre_persona, in.c_str());
+
+	gotoxy(41, 9); in = string(leer_numeros());
+
+	cuenta->cedula = in;
+
+	gotoxy(44, 10); getline(cin, in);
+	cuenta->direccion = in;
+
+	gotoxy(43, 11); in = string(leer_numeros());
+	cuenta->telefono = in;
+
+	gotoxy(40, 12); getline(cin, in);
+	cuenta->email = in;
+
+	gotoxy(42, 13); getline(cin, in);
+	if (in.size() > 8)
+	{
+		gotoxy(30, 20); cout << "El usuario excede los 8 caracteres";
+		_getch();
+		return;
+	}
+
+	if (!buscar_usuario(in.c_str()))
+	{
+		gotoxy(30, 20); cout << "Usuario no encontrado";
+		_getch();
+		return;
+	}
+	strcpy_s(cuenta->user, in.c_str());
+	cuenta->saldo = 0;
+	cuenta->estado = 'A';
+
+	guardar_cuenta(DAT_CUENTAS, cuenta);
+	cuentas.push_back(cuenta);
+
+
+	_getch();
+}
+
+Cuenta* buscar_cuenta(const char* n_cuenta)
+{
+	for (int a = 0; a < cuentas.size(); a++)
+	{
+		if (strcmp(n_cuenta, cuentas[a]->numero) == 0)
+		{
+			return cuentas[a];
+		}
+	}
+
+	return NULL;
+}
+
+void guardar_cuenta(const char* file, Cuenta* cuenta)
+{
+	ficheroSalida.open(file, ios::app);
+
+	ficheroSalida << cuenta->numero << endl;
+	ficheroSalida << cuenta->nombre_persona << endl;
+	ficheroSalida << cuenta->cedula << endl;
+	ficheroSalida << cuenta->direccion << endl;
+	ficheroSalida << cuenta->telefono << endl;
+	ficheroSalida << cuenta->email << endl;
+	ficheroSalida << cuenta->saldo << endl;
+	ficheroSalida << cuenta->estado << endl;
+	ficheroSalida << cuenta->user << endl;
+
+	ficheroSalida.close();
+
+}
+
+void modificar_cuenta()
+{
+	system("CLS");
+	formulario(4);
+	gotoxy(41, 10); cout << "Modificar Cuenta";
+
+	string n_cuenta;
+
+	gotoxy(42, 7); getline(cin, n_cuenta);
+
+	Cuenta* cuenta = buscar_cuenta(n_cuenta.c_str());
+
+	if (!cuenta)
+	{
+		gotoxy(30, 15); cout << "Cuenta no encontrada";
+		_getch();
+		return;
+	}
+
+	system("CLS");
+	switch (menus(1,5,4))
+	{
+		case 1:
+		{
+			gotoxy(30, 21); cout << "Ingrese el nombre de la persona: ";
+			string nombre;
+			getline(cin, nombre);
+			gotoxy(30, 23);
+			if (nombre.size() > 40)
+			{
+				cout << "El nombre ha excedido los 40 caracteres";
+				break;
+			}
+			strcpy_s(cuenta->nombre_persona, nombre.c_str());
+			edit_account(cuenta);
+			cout << "Editado con exito.";
+		}
+		break;
+		case 2:
+		{
+			gotoxy(30, 21); cout << "Ingrese la nueva cedula: ";
+			string cc = string(leer_numeros());
+			cuenta->cedula = cc;
+			edit_account(cuenta);
+			gotoxy(30, 23); cout << "Editado con exito.";
+		}
+		break;
+		case 3:
+		{
+			gotoxy(30, 21); cout << "Ingrese la nueva direccion: ";
+			string direccion;
+			getline(cin, direccion);
+			cuenta->direccion = direccion;
+			edit_account(cuenta);
+			gotoxy(30, 23); cout << "Editado con exito.";
+		}
+		break;
+		case 4:
+		{
+			gotoxy(30, 21); cout << "Ingrese el nuevo telefono: ";
+			string telefono = string(leer_numeros());
+			cuenta->telefono = telefono;
+			edit_account(cuenta);
+			gotoxy(30, 23); cout << "Editado con exito.";
+		}
+		break;
+		case 5:
+		{
+			gotoxy(30, 21); cout << "Ingrese el nuevo email: ";
+			string email;
+			getline(cin, email);
+			cuenta->email = email;
+			edit_account(cuenta);
+			gotoxy(30, 23); cout << "Editado con exito.";
+		}
+		break;
+		case 27-48:
+			return;
+			break;
+		default:
+			break;
+	}
+
+	_getch();
+}
+
+void bloquear_cuenta()
+{
+	system("CLS");
+	formulario(4);
+	gotoxy(41, 10); cout << "Bloquear Cuenta";
+
+	string n_cuenta;
+
+	gotoxy(42, 7); getline(cin, n_cuenta);
+
+	Cuenta* cuenta = buscar_cuenta(n_cuenta.c_str());
+	gotoxy(30, 15);
+
+	if (!cuenta)
+	{
+		cout << "Cuenta no encontrada";
+		_getch();
+		return;
+	}
+
+	if (cuenta->estado == 'B')
+	{
+		cout << "La cuenta ya se encuentra bloqueada";
+		_getch();
+		return;
+	}
+
+	if (cuenta->saldo != 0)
+	{
+		cout << "No puede bloquear la cuenta porque tiene saldo";
+		_getch();
+		return;
+	}
+
+	cuenta->estado = 'B';
+	edit_account(cuenta);
+	cout << "Bloqueada con exito";
+
+	_getch();
+}
+
+void edit_account(Cuenta* editedAccount)
+{
+	ficheroEntrada.open(DAT_CUENTAS, ios::in);
+	ofstream salidaTemporal;
+	const char* tempFile = "cuentasTemp.dat";
+	salidaTemporal.open(tempFile, ios::out);
+	salidaTemporal.close();
+
+	while (!ficheroEntrada.eof())
+	{
+		Cuenta* cuenta = new Cuenta();
+		ficheroEntrada.getline(cuenta->numero, 5);
+		if (ficheroEntrada.eof())
+		{
+			ficheroEntrada.close();
+			break;
+		}
+		ficheroEntrada.getline(cuenta->nombre_persona, 40);
+		getline(ficheroEntrada, cuenta->cedula);
+		getline(ficheroEntrada, cuenta->direccion);
+		getline(ficheroEntrada, cuenta->telefono);
+		getline(ficheroEntrada, cuenta->email);
+
+		string saldo;
+		getline(ficheroEntrada, saldo);
+		cuenta->saldo = atoi(saldo.c_str());
+
+		char* estado = new char();
+		ficheroEntrada.getline(estado, 2);
+		cuenta->estado = estado[0];
+
+		ficheroEntrada.getline(cuenta->user, 8);
+
+		if (strcmp(editedAccount->numero, cuenta->numero) == 0)
+		{
+			cuenta = editedAccount;
+		}
+
+		guardar_cuenta(tempFile, cuenta);
+	}
+	ficheroEntrada.close();
+	remove(DAT_CUENTAS);
+	rename(tempFile, DAT_CUENTAS);
+}
 
 void menu_admin()
 {
@@ -168,7 +479,6 @@ void menu_admin()
 			break;
 	}
 }
-
 
 void agregar_usuarios()
 {
@@ -584,7 +894,42 @@ void cargar_usuarios()
 
 void cargar_cuentas()
 {
-	crear_archivo_si_no_existe(DAT_CUENTAS);
+	//crear_archivo_si_no_existe(DAT_CUENTAS);
+
+	ficheroEntrada.open(DAT_CUENTAS, ios::in);
+
+	while (!ficheroEntrada.eof())
+	{
+		
+		Cuenta* cuenta = new Cuenta();
+		ficheroEntrada.getline(cuenta->numero, 5);
+		if (ficheroEntrada.eof())
+		{
+			ficheroEntrada.close();
+			break;
+		}
+		ficheroEntrada.getline(cuenta->nombre_persona, 40);
+		getline(ficheroEntrada, cuenta->cedula);
+		getline(ficheroEntrada, cuenta->direccion);
+		getline(ficheroEntrada, cuenta->telefono);
+		getline(ficheroEntrada, cuenta->email);
+
+		string saldo;
+		getline(ficheroEntrada, saldo);
+		cuenta->saldo = atoi(saldo.c_str());
+
+		char* estado = new char();
+		ficheroEntrada.getline(estado, 2);
+		cuenta->estado = estado[0];
+
+		ficheroEntrada.getline(cuenta->user, 8);
+		
+		cuentas.push_back(cuenta);
+		
+	}
+
+	ficheroEntrada.close();
+	
 }
 
 void cargar_movimientos()
@@ -664,11 +1009,43 @@ void formulario(int tipo)
 		gotoxy(30, ++y); cout << v << "                                    ";  gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << eii << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << eid;
 	}
+
+	if (tipo == 3)
+	{
+		gotoxy(30, ++y); cout << esi << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << esd;
+		gotoxy(30, ++y); cout << v << "          Crear Cuenta				"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  Numero:							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Nombre Persona: 					"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Cedula: 							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  Direccion:							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Telefono: 							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Email: 							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Usuario: 							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "        Accede a tu usuario        ";  gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << eii << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << eid;
+	}
+
+	if (tipo == 4)
+	{
+		gotoxy(30, ++y); cout << esi << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << esd;
+		gotoxy(30, ++y); cout << v << "          Buscar Cuenta				"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  Numero:							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "                                    ";  gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << eii << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << eid;
+	}
 }
 
 void lista_menu(int tipo)
 {
-	
+
 	char h = 196;
 	char v = 179;
 	char esi = 218;
@@ -683,7 +1060,7 @@ void lista_menu(int tipo)
 	int y = 2;
 
 
-	if ( tipo == 0 )
+	if (tipo == 0)
 	{
 		gotoxy(30, ++y); cout << esi << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << esd;
 		gotoxy(30, ++y); cout << v << "               Login                " << v;
@@ -708,7 +1085,7 @@ void lista_menu(int tipo)
 		gotoxy(30, ++y); cout << v << "       Panel de Administrador        "; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
 		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
-		gotoxy(30, ++y); cout << v << "	 Usuario: "<< logged_user->nombre	; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Usuario: " << logged_user->nombre; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << v << "  1-> Agregar Usuario				"; gotoxy(67, y); cout << v;
@@ -738,6 +1115,50 @@ void lista_menu(int tipo)
 		gotoxy(30, ++y); cout << v << "	 2-> Contrase" << ene << "a			"; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << v << "	 3-> Tipo							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "  ESC-> Salir				";  gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << eii << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << eid;
+	}
+
+
+	if (tipo == 3)
+	{
+		gotoxy(30, ++y); cout << esi << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << esd;
+		gotoxy(30, ++y); cout << v << "         Panel de Cuentas		    "; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Usuario: " << logged_user->nombre; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  1-> Agregar Cuenta					"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  2-> Modificar Cuenta				"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 3-> Bloquear Cuenta				"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 4-> Consultar Cuenta				"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "  ESC-> Cerrar Sesion				";  gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << eii << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << eid;
+	}
+
+
+	if (tipo == 4)
+	{
+		gotoxy(30, ++y); cout << esi << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << esd;
+		gotoxy(30, ++y); cout << v << "         Modificar Usuario         "; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Usuario: "; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  1-> Nombre 				        "; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 2-> Cedula							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 3-> Direccion						"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 4-> Telefono						"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 5-> Email							"; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
 		gotoxy(30, ++y); cout << v << "  ESC-> Salir				";  gotoxy(67, y); cout << v;
