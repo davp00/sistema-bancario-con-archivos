@@ -57,13 +57,14 @@ char o = 162;
 char getcht();
 char *leer_letras();
 char *leer_numeros();
+char* leer_fecha();
 string leer_password();
 void gotoxy(int x, int y);
 int menus(int ini, int fin, int tipo);
 void lista_menu(int tipo);
 void formulario(int tipo);
 void crear_archivo_si_no_existe(const char* txt);
-int *crear_tabla(vector<string> fields, int tam, int n_datos);
+int* crear_tabla(vector<string> fields, int tam, int n_datos, int _y);
 
 void cargar_usuarios();
 void cargar_cuentas();
@@ -71,8 +72,10 @@ void cargar_movimientos();
 
 void login();
 Usuario *buscar_usuario(const char*nick);
+int usuario_pos(const char* nick);
 void cerrar_sesion();
 
+//MENUS DE LOS MODULOS
 void menu_admin();
 void menu_cajero();
 void menu_cuenta();
@@ -90,9 +93,23 @@ void lista_usuarios();
 void agregar_cuentas();
 void guardar_cuenta(const char *file, Cuenta *cuenta);
 Cuenta *buscar_cuenta(const char* n_cuenta);
+Cuenta* buscar_cuenta_usuario(const char* n_cuenta, const char* nick);
 void modificar_cuenta();
 void edit_account(Cuenta* editedAccount);
 void bloquear_cuenta();
+void consultar_cuenta(int mode);
+
+//FUNCIONES MOVIMIENTOS
+void crear_movimiento(char mode);
+void guardar_movimiento(const char* file, Movimiento* movimiento);
+void consultar_movimiento();
+Movimiento *buscar_movimiento(int id);
+
+
+//FUNCIONES USUARIOS
+vector<Cuenta*> cuentas_usuario(const char* nick);
+vector<Movimiento*> movimientos_usuario(const char *nick);
+vector<Movimiento*> movimientos_cuenta(const char* n_cuenta);
 
 vector<Usuario *> usuarios;
 vector<Cuenta*> cuentas;
@@ -106,7 +123,6 @@ ofstream ficheroSalida;
 int main()
 {
 	bool salir = false;
-	
 
 
 	cargar_usuarios();
@@ -131,6 +147,7 @@ int main()
 					menu_admin();
 					break;
 				case '2':
+					menu_cajero();
 					break;
 				case '3':
 					menu_cuenta();
@@ -147,6 +164,189 @@ int main()
 	} while (!salir);
 
 
+}
+
+void menu_cajero()
+{
+	system("CLS");
+	switch (menus(1, 4, 5))
+	{
+	case 1:
+		crear_movimiento('C');
+		break;
+
+	case 2:
+		crear_movimiento('R');
+		break;
+
+	case 3:
+
+		break;
+
+	case 4:
+		consultar_movimiento();
+		break;
+
+	case 27 - 48:
+		cerrar_sesion();
+		break;
+	}
+}
+
+void crear_movimiento(char mode)
+{
+	system("CLS");
+	formulario(5);
+	if (mode == 'C') { gotoxy(41, 4); cout << "Consignaciones"; }
+	else { gotoxy(45, 4); cout << "Retiros"; }
+
+	string in;
+	Movimiento* movimiento = new Movimiento();
+
+	gotoxy(43, 7); getline(cin, in);
+
+	Cuenta* cuenta = buscar_cuenta(in.c_str());
+
+	if (!cuenta)
+	{
+		gotoxy(30, 20); cout << "Cuenta no encontrada";
+		_getch();
+		return;
+	}
+
+	strcpy_s(movimiento->numero_cuenta, cuenta->numero);
+
+	gotoxy(40, 8); in = string(leer_fecha());
+
+	movimiento->fecha = in;
+
+	gotoxy(40, 9); int valor = atoi(leer_numeros());
+
+	movimiento->monto = valor;
+
+	gotoxy(42, 10); getline(cin, in);
+	Usuario* usuario = buscar_usuario(in.c_str());
+
+	if (!usuario)
+	{
+		gotoxy(30, 20); cout << "Usuario no encontrado";
+		_getch();
+		return;
+	}
+
+	strcpy_s(movimiento->user, usuario->nick);
+
+	if (mode == 'R')
+	{
+		valor = valor * -1;
+	}
+
+	movimiento->ID = movimientos.size() + 1;
+	movimiento->tipo = mode;
+
+	if (cuenta->saldo + valor >= 0)
+	{
+		cuenta->saldo += valor;
+		edit_account(cuenta);
+		guardar_movimiento(DAT_MOVIMIENTOS, movimiento);
+		movimientos.push_back(movimiento);
+		gotoxy(30, 20); cout << "Proceso terminado con exito";
+	}
+	else
+	{
+		gotoxy(30, 20); cout << "La cuenta no tiene dinero suficiente";
+	}
+
+	_getch();
+}
+
+void consultar_movimiento()
+{
+	system("CLS");
+	formulario(6);
+	string id;
+	gotoxy(37, 7); getline(cin, id);
+
+	Movimiento* movimiento = buscar_movimiento(atoi(id.c_str()));
+
+	if (!movimiento)
+	{
+		gotoxy(30, 15); cout << "Movimiento no encontrado";
+		_getch();
+		return;
+	}
+
+	int y = 14;
+
+	gotoxy(30, ++y); cout << "# Cuenta -> " << movimiento->numero_cuenta;
+	gotoxy(30, ++y); cout << "  Fecha  -> " << movimiento->fecha;
+	gotoxy(30, ++y); cout << "  Tipo   -> " << (movimiento->tipo == 'C' ? "Consignacion" : "Retiro") ;
+	gotoxy(30, ++y); cout << "  Valor  -> " << movimiento->monto;
+	gotoxy(30, ++y); cout << "  Usuario-> " << movimiento->user;
+
+	_getch();
+}
+
+Movimiento *buscar_movimiento(int id)
+{
+	return movimientos[id - 1] ? movimientos[id - 1] : NULL;
+}
+
+vector<Cuenta*> cuentas_usuario(const char* nick)
+{
+	vector <Cuenta*> cuentas_usr;
+
+	for (int a = 0; a < cuentas.size(); a++)
+	{
+		if (_strcmpi(cuentas[a]->user, nick) == 0)
+		{
+			cuentas_usr.push_back(cuentas[a]);
+		}
+	}
+
+	return cuentas_usr;
+}
+
+vector<Movimiento*> movimientos_usuario(const char* nick)
+{
+	vector<Movimiento*> movimientos_usr;
+
+	for (int a = 0; a < movimientos.size(); a++)
+	{
+		if (_strcmpi(movimientos[a]->user, nick) == 0)
+		{
+			movimientos_usr.push_back(movimientos[a]);
+		}
+	}
+
+	return movimientos_usr;
+}
+
+vector<Movimiento*> movimientos_cuenta(const char* n_cuenta)
+{
+	vector<Movimiento*>movimientos_cuen;
+
+	for (int a = 0; a < movimientos.size(); a++)
+	{
+		if (strcmp(movimientos[a]->numero_cuenta, n_cuenta) == 0)
+		{
+			movimientos_cuen.push_back(movimientos[a]);
+		}
+	}
+
+	return movimientos_cuen;
+}
+
+void guardar_movimiento(const char* file, Movimiento* movimiento)
+{
+	ficheroSalida.open(file, ios::app);
+	ficheroSalida << movimiento->ID << endl;
+	ficheroSalida << movimiento->numero_cuenta << endl;
+	ficheroSalida << movimiento->fecha << endl;
+	ficheroSalida << movimiento->tipo << endl;
+	ficheroSalida << movimiento->monto << endl;
+	ficheroSalida << movimiento->user << endl;
+	ficheroSalida.close();
 }
 
 void menu_cuenta()
@@ -167,7 +367,7 @@ void menu_cuenta()
 			break;
 
 		case 4:
-
+			consultar_cuenta(1);
 			break;
 
 		case 27 - 48:
@@ -255,6 +455,19 @@ Cuenta* buscar_cuenta(const char* n_cuenta)
 	for (int a = 0; a < cuentas.size(); a++)
 	{
 		if (strcmp(n_cuenta, cuentas[a]->numero) == 0)
+		{
+			return cuentas[a];
+		}
+	}
+
+	return NULL;
+}
+
+Cuenta* buscar_cuenta_usuario(const char* n_cuenta, const char *nick)
+{
+	for (int a = 0; a < cuentas.size(); a++)
+	{
+		if (strcmp(n_cuenta, cuentas[a]->numero) == 0 && _strcmpi(n_cuenta, nick) == 0)
 		{
 			return cuentas[a];
 		}
@@ -405,6 +618,65 @@ void bloquear_cuenta()
 	edit_account(cuenta);
 	cout << "Bloqueada con exito";
 
+	_getch();
+}
+
+void consultar_cuenta(int mode)
+{
+	system("CLS");
+	formulario(4);
+
+	gotoxy(41, 10); cout << "Consultar Cuenta";
+
+	string n_cuenta;
+
+	gotoxy(42, 7); getline(cin, n_cuenta);
+
+	Cuenta* cuenta = buscar_cuenta(n_cuenta.c_str());
+	gotoxy(30, 15);
+
+	if (!cuenta)
+	{
+		cout << "Cuenta no encontrada";
+		_getch();
+		return;
+	}
+
+	system("CLS");
+
+	vector<string> fields = { "ID", "Fecha", "Tipo", "Valor", "User" };
+	int tam = 20;
+	int y = 2;
+
+	gotoxy(3, y); cout << "INFORMACION DE LA CUENTA";
+	y += 3;
+	gotoxy(3, y++); cout << "Nombre    -> " << cuenta->nombre_persona;
+	gotoxy(3, y++); cout << "Cedula    -> " << cuenta->cedula;
+	gotoxy(3, y++); cout << "Direccion -> " << cuenta->direccion;
+	gotoxy(3, y++); cout << "Telefono  -> " << cuenta->telefono;
+	gotoxy(3, y++); cout << "Email     -> " << cuenta->email;
+	gotoxy(3, y++); cout << "User      -> " << cuenta->user;
+	gotoxy(3, y++); cout << "Saldo     -> " << cuenta->saldo;
+
+	vector<Movimiento*> mv_cuenta = movimientos_cuenta(cuenta->numero);
+
+	y += 2;
+
+	int *values = crear_tabla(fields, tam, mv_cuenta.size(), y);
+	gotoxy(42, y + 1); cout << "Lista de Movimientos";
+	y = values[0];
+
+	for (int a = 0; a < mv_cuenta.size(); a++)
+	{
+		gotoxy(2, y); cout << v;
+		gotoxy(4, y); cout << mv_cuenta[a]->ID;
+		gotoxy(tam + 4, y); cout << mv_cuenta[a]->fecha;
+		gotoxy(2 * tam + 4, y); cout << (mv_cuenta[a]->tipo == 'C' ? "Consignacion": "Retiro");
+		gotoxy(3 * tam + 4, y); cout << mv_cuenta[a]->monto;
+		gotoxy(4 * tam + 4, y); cout << mv_cuenta[a]->user;
+		gotoxy(values[1], y); cout << v;
+		y++;
+	}
 	_getch();
 }
 
@@ -645,7 +917,6 @@ void modificar_usuario()
 	}
 }
 
-//Agregar restriccion para cuando tengan registros
 void eliminar_usuario()
 {
 	system("CLS");
@@ -664,8 +935,21 @@ void eliminar_usuario()
 		return;
 	}
 
-	edit_user(usuario->nick, NULL, true);
-	gotoxy(30, 15); cout << "Usuario Eliminado.";
+	gotoxy(30, 15);
+
+	if (cuentas_usuario(usuario->nick).size() == 0 && movimientos_usuario(usuario->nick).size() == 0)
+	{
+		edit_user(usuario->nick, NULL, true);
+		int pos = usuario_pos(usuario->nick);
+		usuarios.erase(usuarios.begin() + pos);
+		cout << "Usuario Eliminado.";
+	}
+	else
+	{
+		cout << "El usuario no puede ser eliminado porque tiene movimientos o cuentas";
+	}
+
+	
 	_getch();
 }
 
@@ -724,7 +1008,7 @@ void lista_usuarios()
 	vector<string> fields = { "Usuario", "Nombre", "Tipo" };
 	int tam = 35;
 	int y = 6;
-	int *values = crear_tabla(fields, tam, usuarios.size());
+	int *values = crear_tabla(fields, tam, usuarios.size(),1);
 
 	gotoxy(45, 2); cout << "Lista de Usuarios";
 
@@ -741,10 +1025,10 @@ void lista_usuarios()
 	_getch();
 }
 
-int *crear_tabla(vector<string> fields, int tam, int n_datos)
+int *crear_tabla(vector<string> fields, int tam, int n_datos, int _y)
 {
 	int *values = new int();
-	int y = 1;
+	int y = _y;
 	int arreglo_visual = 2;
 
 	int total_tam = (tam * fields.size()) + arreglo_visual;
@@ -781,7 +1065,7 @@ int *crear_tabla(vector<string> fields, int tam, int n_datos)
 		gotoxy(a, y); cout << h;
 	}
 	gotoxy(total_tam, y); cout << t;
-	values[0] = y;
+	values[0] = y + 1;
 	values[1] = total_tam;
 
 	y = y + n_datos;
@@ -845,6 +1129,18 @@ Usuario* buscar_usuario(const char *nick)
 	}
 
 	return NULL;
+}
+
+int usuario_pos(const char* nick)
+{
+	for (int a = 0; a < usuarios.size(); a++)
+	{
+		if (_strcmpi(nick, usuarios[a]->nick) == 0)
+		{
+			return a;
+		}
+	}
+	return -1;
 }
 
 void cargar_usuarios()
@@ -935,6 +1231,38 @@ void cargar_cuentas()
 void cargar_movimientos()
 {
 	crear_archivo_si_no_existe(DAT_MOVIMIENTOS);
+
+	ficheroEntrada.open(DAT_MOVIMIENTOS, ios::in);
+
+	while (!ficheroEntrada.eof())
+	{
+		Movimiento* movimiento = new Movimiento();
+		string n;
+		getline(ficheroEntrada, n);
+		
+		movimiento->ID = atoi(n.c_str());
+		
+		if (ficheroEntrada.eof())
+		{
+			ficheroEntrada.close();
+			break;
+		}
+		ficheroEntrada.getline(movimiento->numero_cuenta, 5);
+		getline(ficheroEntrada, movimiento->fecha);
+
+		char* tipo = new char();
+		ficheroEntrada.getline(tipo, 2);
+		movimiento->tipo = tipo[0];
+
+		getline(ficheroEntrada, n);
+		movimiento->monto = atoi(n.c_str());
+
+		ficheroEntrada.getline(movimiento->user, 8);
+
+		movimientos.push_back(movimiento);
+	}
+
+	ficheroEntrada.close();
 }
 
 int menus(int ini, int fin, int tipo)
@@ -1036,6 +1364,35 @@ void formulario(int tipo)
 		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
 		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << v << "  Numero:							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "                                    ";  gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << eii << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << eid;
+	}
+
+	if (tipo == 5)
+	{
+		gotoxy(30, ++y); cout << esi << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << esd;
+		gotoxy(30, ++y); cout << v << "									"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  # Cuenta:							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Fecha:			 					"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Valor: 							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Usuario: 							"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "            Movimientos				";  gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << eii << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << eid;
+	}
+
+	if (tipo == 6)
+	{
+		gotoxy(30, ++y); cout << esi << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << esd;
+		gotoxy(30, ++y); cout << v << "        Buscar Movimiento			"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  ID:							    "; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
 		gotoxy(30, ++y); cout << v << "                                    ";  gotoxy(67, y); cout << v;
@@ -1164,6 +1521,28 @@ void lista_menu(int tipo)
 		gotoxy(30, ++y); cout << v << "  ESC-> Salir				";  gotoxy(67, y); cout << v;
 		gotoxy(30, ++y); cout << eii << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << eid;
 	}
+
+	if (tipo == 5)
+	{
+		gotoxy(30, ++y); cout << esi << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << esd;
+		gotoxy(30, ++y); cout << v << "         Panel de Cajero			    "; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 Usuario: " << logged_user->nombre; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  1-> Consignar						"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "  2-> Retirar						"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 3-> Modificar				"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "	 4-> Consultar Movimiento			"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << v << "										"; gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << t2 << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << t;
+		gotoxy(30, ++y); cout << v << "  ESC-> Cerrar Sesion				";  gotoxy(67, y); cout << v;
+		gotoxy(30, ++y); cout << eii << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << h << eid;
+	}
 }
 
 char *leer_letras()
@@ -1247,7 +1626,7 @@ string leer_password()
 
 char *leer_numeros()
 {
-	int i;
+	int i, cont = 0, n_numeros = 4;
 	char tecla;
 	char* p = new char();
 	/*importante inicializar los valores
@@ -1275,6 +1654,54 @@ char *leer_numeros()
 			{
 				cout << tecla;
 				p[i++] = tecla;
+			}
+		}
+	} while ((tecla != 13 || p[0] == '\0'));
+	/* 13 indica el Enter, i tiene que ser menor
+	que TAM pues de lo contrario, estarÃ¯¿½a accediendo
+	a memoria no reservada*/
+
+	p[i] = '\0'; /*colocamos el fin de cadena*/
+
+
+	return p;
+}
+
+char* leer_fecha()
+{
+	int i;
+	char tecla;
+	char* p = new char();
+	/*importante inicializar los valores
+	ya que la implementacion que hice lo amerita*/
+	i = 0;
+	p[0] = '\0';
+
+	do
+	{
+		tecla = getcht();//atrapa un caracter sin dejar un eco
+
+		/*8 es la tecla para eliminar un caracter
+		y el i obligaotiamente tiene que ser mayor que cero
+		ya que si entra al if y tiene valor cero, el valor de i
+		decrementarÃ¯¿½ y p tendrÃ¯¿½a un subindice -1, "p[-1]"Ã¯¿½?*/
+		if (i > 0 && tecla == 8)
+		{
+			cout << ("\b \b");
+			p[--i] = '\0';
+		}
+		else
+		{
+			/*rango de letras mayusculas y minusculas y 32 es el espacio*/
+			if ((tecla >= 48 && tecla <= 57) && i < 10 )
+			{
+				cout << tecla;
+				p[i++] = tecla;
+				if (i == 4 || i ==7)
+				{
+					cout << '/';
+					p[i++] = '/';
+				}
 			}
 		}
 	} while ((tecla != 13 || p[0] == '\0'));
